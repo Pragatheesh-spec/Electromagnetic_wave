@@ -210,12 +210,12 @@
         const gui = new lil.GUI({ title: 'Spacetime Visualizer' });
         
         const fCam = gui.addFolder('Camera Angles');
-        fCam.add(params, 'perspectiveView').name('🎬 3D Gravity Funnel View');
-        fCam.add(params, 'topDownView').name('🔒 Flat Overhead View');
+        fCam.add(params, 'perspectiveView').name(' 3D view');
+        fCam.add(params, 'topDownView').name('2D view');
 
-        const fStar = gui.addFolder('Gravitational Singularity');
-        fStar.add(params, 'starMass', 0, 25, 0.1).name('Fabric Depth (Mass)').onChange(updateFabric);
-        fStar.add(params, 'impactParameter', 3.8, 20, 0.1).name('Wave Proximity');
+        const fStar = gui.addFolder('Gravitational force');
+        fStar.add(params, 'starMass', 0, 25, 0.1).name('Mass').onChange(updateFabric);
+        fStar.add(params, 'impactParameter', 3.8, 20, 0.1).name('Wave position');
         
         const fWave = gui.addFolder('Wave Form');
         fWave.add(params, 'amplitude', 0, 3.0, 0.1).name('Wave Amplitude');
