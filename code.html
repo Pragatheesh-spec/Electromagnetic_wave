@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Gravitational Well & Deflection Simulation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #020204;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(5, 5, 10, 0.95);
+            padding: 15px 20px;
+            border-radius: 8px;
+            pointer-events: none;
+            max-width: 340px;
+            border: 1px solid #1a3a5f;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.8);
+        }
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.1rem;
+            color: #00e5ff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        p {
+            margin: 0;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: #aabbcc;
+        }
+        .lil-gui {
+            --background-color: rgba(5, 5, 10, 0.95) !important;
+            --text-color: #e0e0e0 !important;
+            --title-background-color: #0b1d33 !important;
+            --widget-color: #162a45 !important;
+            --hover-color: #00e5ff !important;
+            --focus-color: #00e5ff !important;
+            font-family: monospace !important;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #1a3a5f;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.18"></script>
+</head>
+<body>
+
+    <div id="info-panel">
+        <h1>Electromagnetic wave in a curved space time</h1>
+        <p>This is an Electromagnetic wave on a curved space time conpared to a straight line<br><br>The <span style="color: #00ffff; font-weight: bold;">Cyan Wave</span> bends and deflects, while the <span style="color: #ff3333; font-weight: bold;">Red Line</span> is for reference.</p>
+    </div>
+
+    <script>
+        // --- 1. Simulation Parameters ---
+        const params = {
+            starMass: 16.0,        // High initial mass for distinct funnel warp
+            impactParameter: 6.0,
+            waveSpeed: 0.35,
+            wavelength: 3.5,
+            amplitude: 1.0,
+            gridColor: '#1d528f',
+            showGrid: true,
+            showReference: true,
+            topDownView: function() {
+                camera.position.set(0, 55, 0);
+                controls.target.set(0, 0, 0);
+                controls.update();
+            },
+            perspectiveView: function() {
+                camera.position.set(-25, 25, 35);
+                controls.target.set(0, -3, 0);
+                controls.update();
+            }
+        };
+
+        // --- 2. Setup Scene, Camera, and Renderer ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        camera.position.set(-30, 22, 35);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.target.set(0, -2, 0); 
+
+        // --- 3. Lights ---
+        const ambientLight = new THREE.AmbientLight(0x444444);
+        scene.add(ambientLight);
+        const pointLight = new THREE.PointLight(0xffffff, 3, 100);
+        scene.add(pointLight);
+
+        // --- 4. Create Star & Core Glow ---
+        const starRadius = 3.5;
+        const starGeometry = new THREE.SphereGeometry(starRadius, 32, 32);
+        const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 });
+        const star = new THREE.Mesh(starGeometry, starMaterial);
+        scene.add(star);
+
+        const coreGeometry = new THREE.SphereGeometry(starRadius * 0.4, 8, 8);
+        const coreMaterial = new THREE.MeshBasicMaterial({ color: 'white', wireframe: true });
+        const core = new THREE.Mesh(coreGeometry, coreMaterial);
+        star.add(core);
+
+        // --- 5. Dynamic Polar Space-Time Fabric Mesh ---
+        let gridGeometry = new THREE.BufferGeometry();
+        const gridMaterial = new THREE.LineBasicMaterial({ color: params.gridColor, transparent: true, opacity: 0.75 });
+        let spaceTimeGrid = new THREE.LineSegments(gridGeometry, gridMaterial);
+        scene.add(spaceTimeGrid);
+
+        // Exponential Decay function representing space warp depth
+        function getSpaceTimeHeight(x, z) {
+            const r = Math.sqrt(x*x + z*z);
+            const falloff = 5.5; 
+            if (r < starRadius) return -params.starMass;
+            return -params.starMass * Math.exp(-(r - starRadius) / falloff);
+        }
+
+        // Generates a polar web structure (circles + radial spikes) that wraps shapes cleanly
+        function updateFabric() {
+            const vertices = [];
+            const rings = 35;       
+            const radialLines = 48; 
+            const maxRadius = 45;
+
+            // 1. Generate Concentric Rings
+            for (let r = 0; r <= rings; r++) {
+                const normalizedRadius = r / rings;
+                // Distribute rings closer together near the star to capture the extreme warp detail
+                const radius = Math.pow(normalizedRadius, 1.3) * maxRadius; 
+
+                for (let s = 0; s < radialLines; s++) {
+                    const theta1 = (s / radialLines) * Math.PI * 2;
+                    const theta2 = ((s + 1) / radialLines) * Math.PI * 2;
+
+                    const x1 = Math.cos(theta1) * radius;
+                    const z1 = Math.sin(theta1) * radius;
+                    const x2 = Math.cos(theta2) * radius;
+                    const z2 = Math.sin(theta2) * radius;
+
+                    vertices.push(x1, getSpaceTimeHeight(x1, z1), z1);
+                    vertices.push(x2, getSpaceTimeHeight(x2, z2), z2);
+                }
+            }
+
+            // 2. Generate Radial Spokes
+            for (let s = 0; s < radialLines; s++) {
+                const theta = (s / radialLines) * Math.PI * 2;
+                const cos = Math.cos(theta);
+                const sin = Math.sin(theta);
+
+                for (let r = 0; r < rings; r++) {
+                    const normR1 = r / rings;
+                    const normR2 = (r + 1) / rings;
+                    const radius1 = Math.pow(normR1, 1.3) * maxRadius;
+                    const radius2 = Math.pow(normR2, 1.3) * maxRadius;
+
+                    const x1 = cos * radius1;
+                    const z1 = sin * radius1;
+                    const x2 = cos * radius2;
+                    const z2 = sin * radius2;
+
+                    vertices.push(x1, getSpaceTimeHeight(x1, z1), z1);
+                    vertices.push(x2, getSpaceTimeHeight(x2, z2), z2);
+                }
+            }
+
+            gridGeometry.dispose();
+            gridGeometry = new THREE.BufferGeometry();
+            gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            spaceTimeGrid.geometry = gridGeometry;
+        }
+        updateFabric();
+
+        // --- 6. Create the Deflected EM Wave ---
+        const wavePointsCount = 500;
+        const waveGeometry = new THREE.BufferGeometry();
+        const wavePositions = new Float32Array(wavePointsCount * 3);
+        waveGeometry.setAttribute('position', new THREE.BufferAttribute(wavePositions, 3));
+        const waveMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff });
+        const waveLine = new THREE.Line(waveGeometry, waveMaterial);
+        scene.add(waveLine);
+
+        // --- 7. Create the Reference Line ---
+        const refGeometry = new THREE.BufferGeometry();
+        const refPositions = new Float32Array(wavePointsCount * 3);
+        refGeometry.setAttribute('position', new THREE.BufferAttribute(refPositions, 3));
+        const refMaterial = new THREE.LineDashedMaterial({ color: 0xff3333, dashSize: 0.8, gapSize: 0.4 });
+        const refLine = new THREE.Line(refGeometry, refMaterial);
+        scene.add(refLine);
+
+        let waveTime = 0;
+
+        // --- 8. Build GUI Interface ---
+        const gui = new lil.GUI({ title: 'Spacetime Visualizer' });
+        
+        const fCam = gui.addFolder('Camera Angles');
+        fCam.add(params, 'perspectiveView').name('🎬 3D Gravity Funnel View');
+        fCam.add(params, 'topDownView').name('🔒 Flat Overhead View');
+
+        const fStar = gui.addFolder('Gravitational Singularity');
+        fStar.add(params, 'starMass', 0, 25, 0.1).name('Fabric Depth (Mass)').onChange(updateFabric);
+        fStar.add(params, 'impactParameter', 3.8, 20, 0.1).name('Wave Proximity');
+        
+        const fWave = gui.addFolder('Wave Form');
+        fWave.add(params, 'amplitude', 0, 3.0, 0.1).name('Wave Amplitude');
+        fWave.add(params, 'wavelength', 1.5, 10.0, 0.1).name('Wavelength');
+        fWave.add(params, 'waveSpeed', 0.0, 1.0, 0.02).name('Speed');
+
+        const fStyle = gui.addFolder('Cosmetics');
+        fStyle.add(params, 'showGrid').name('Show Space Fabric').onChange(v => spaceTimeGrid.visible = v);
+        fStyle.add(params, 'showReference').name('Show Straight Line').onChange(v => refLine.visible = v);
+        fStyle.addColor(params, 'gridColor').name('Fabric Color').onChange(c => gridMaterial.color.set(c));
+
+        gui.open();
+
+        // --- 9. Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            star.rotation.y += 0.005;
+
+            const positions = waveLine.geometry.attributes.position.array;
+            const refArray = refLine.geometry.attributes.position.array;
+            const frequency = (2 * Math.PI) / params.wavelength;
+
+            for (let i = 0; i < wavePointsCount; i++) {
+                const x = (i / wavePointsCount) * 80 - 40; 
+                const propagationPath = 40 - x + waveTime;
+                const baseOscillation = Math.sin(propagationPath * frequency) * params.amplitude;
+
+                // Curved Wave Path math
+                let z = params.impactParameter; 
+                if (x < 25) {
+                    const integrationFactor = 0.5 * (1 - Math.tanh(x / 4.5)); 
+                    const deflectionScaling = (params.starMass * 1.8) / Math.max(params.impactParameter, 1.0);
+                    z -= integrationFactor * deflectionScaling; 
+                }
+                const spaceDip = getSpaceTimeHeight(x, z);
+                
+                positions[i * 3] = x;
+                // The wave now tracks exactly down into the physical depth grid valley
+                positions[i * 3 + 1] = baseOscillation + spaceDip; 
+                positions[i * 3 + 2] = z;
+
+                // Baseline reference straight path math
+                refArray[i * 3] = x;
+                refArray[i * 3 + 1] = baseOscillation; 
+                refArray[i * 3 + 2] = params.impactParameter; 
+            }
+
+            waveLine.geometry.attributes.position.needsUpdate = true;
+            refLine.geometry.attributes.position.needsUpdate = true;
+            refLine.computeLineDistances();
+
+            waveTime += params.waveSpeed;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
