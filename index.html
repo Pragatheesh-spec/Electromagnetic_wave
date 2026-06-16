@@ -206,29 +206,29 @@
 
         let waveTime = 0;
 
-        // --- 8. Build GUI Interface ---
-        const gui = new lil.GUI({ title: 'Spacetime Visualizer' });
-        
-        const fCam = gui.addFolder('Camera Angles');
-        fCam.add(params, 'perspectiveView').name(' 3D view');
-        fCam.add(params, 'topDownView').name('2D view');
+// --- 8. Build GUI Interface ---
+const gui = new lil.GUI({ title: 'Spacetime Visualizer' });
 
-        const fStar = gui.addFolder('Gravitational force');
-        fStar.add(params, 'starMass', 0, 25, 0.1).name('Mass').onChange(updateFabric);
-        fStar.add(params, 'impactParameter', 3.8, 20, 0.1).name('Wave position');
-        
-        const fWave = gui.addFolder('Wave Form');
-        fWave.add(params, 'amplitude', 0, 3.0, 0.1).name('Wave Amplitude');
-        fWave.add(params, 'wavelength', 1.5, 10.0, 0.1).name('Wavelength');
-        fWave.add(params, 'waveSpeed', 0.0, 1.0, 0.02).name('Speed');
+const fCam = gui.addFolder('Camera Angles');
+fCam.add(params, 'perspectiveView').name(' 3D view');
+fCam.add(params, 'topDownView').name('2D view');
 
-        const fStyle = gui.addFolder('Cosmetics');
-        fStyle.add(params, 'showGrid').name('Show Space Fabric').onChange(v => spaceTimeGrid.visible = v);
-        fStyle.add(params, 'showReference').name('Show Straight Line').onChange(v => refLine.visible = v);
-        fStyle.addColor(params, 'gridColor').name('Fabric Color').onChange(c => gridMaterial.color.set(c));
+const fStar = gui.addFolder('Gravitational force');
+// Added M☉ (Solar Mass unit symbol) to the Mass name label
+fStar.add(params, 'starMass', 0, 25, 0.1).name('Mass (M☉)').onChange(updateFabric);
+fStar.add(params, 'impactParameter', 3.8, 20, 0.1).name('Wave position (u)');
 
-        gui.open();
+const fWave = gui.addFolder('Wave Form');
+fWave.add(params, 'amplitude', 0, 3.0, 0.1).name('Amplitude (u)');
+fWave.add(params, 'wavelength', 1.5, 10.0, 0.1).name('Wavelength (u)');
+fWave.add(params, 'waveSpeed', 0.0, 1.0, 0.02).name('Speed (u/f)');
 
+const fStyle = gui.addFolder('Cosmetics');
+fStyle.add(params, 'showGrid').name('Show Space Fabric').onChange(v => spaceTimeGrid.visible = v);
+fStyle.add(params, 'showReference').name('Show Straight Line').onChange(v => refLine.visible = v);
+fStyle.addColor(params, 'gridColor').name('Fabric Color').onChange(c => gridMaterial.color.set(c));
+
+gui.open();
         // --- 9. Animation Loop ---
         function animate() {
             requestAnimationFrame(animate);
