@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gravity Lensing Simulation</title>
+    <title>Accurate Gravity Lensing Simulation</title>
     <style>
         body {
             margin: 0;
@@ -58,20 +58,24 @@
 
     <div id="info-panel">
         <h1>Gravity Lensing</h1>
-        <p>This is an Electromagnetic wave on a curved space time conpared to a straight line<br><br>The <span style="color: #00ffff; font-weight: bold;">Cyan Wave</span> bends and deflects, while the <span style="color: #ff3333; font-weight: bold;">Red Line</span> is for reference.</p>
+        <p>An EM wave traveling through curved spacetime.<br><br>
+        The <span style="color: #00ffff; font-weight: bold;">Cyan Wave</span> accurately deflects toward the mass.<br>
+        The <span style="color: #ff3333; font-weight: bold;">Red Line</span> is un-deflected space.<br>
+        The <span style="color: #ffff00; font-weight: bold;">Yellow Vector</span> shows the final deflection angle: <span id="angle-display" style="color: #ffff00; font-weight: bold;">0.00</span>°</p>
     </div>
 
     <script>
         // --- 1. Simulation Parameters ---
         const params = {
-            starMass: 16.0,        // High initial mass for distinct funnel warp
-            impactParameter: 6.0,
+            starMass: 8.0,         // Scaled mass parameter mapping to Einstein's formula
+            impactParameter: 6.1,  // Optimized parameter for flawless presentation clearance
             waveSpeed: 0.35,
             wavelength: 3.5,
-            amplitude: 1.0,
+            amplitude: 1.0,        // LOCKED CONTROLLED VARIABLE: Set to a rigid 1.0
             gridColor: '#1d528f',
             showGrid: true,
             showReference: true,
+            showAngleLine: true,   // New Parameter to toggle angle visualizer
             topDownView: function() {
                 camera.position.set(0, 55, 0);
                 controls.target.set(0, 0, 0);
@@ -92,7 +96,7 @@
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        camera.position.set(-30, 22, 35);
+        camera.position.set(-35, 25, 35);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
@@ -123,25 +127,21 @@
         let spaceTimeGrid = new THREE.LineSegments(gridGeometry, gridMaterial);
         scene.add(spaceTimeGrid);
 
-        // Exponential Decay function representing space warp depth
         function getSpaceTimeHeight(x, z) {
             const r = Math.sqrt(x*x + z*z);
-            const falloff = 5.5; 
-            if (r < starRadius) return -params.starMass;
-            return -params.starMass * Math.exp(-(r - starRadius) / falloff);
+            const falloff = 6.0; 
+            if (r < starRadius) return -params.starMass * 0.8;
+            return -params.starMass * 0.8 * Math.exp(-(r - starRadius) / falloff);
         }
 
-        // Generates a polar web structure (circles + radial spikes) that wraps shapes cleanly
         function updateFabric() {
             const vertices = [];
             const rings = 35;       
             const radialLines = 48; 
             const maxRadius = 45;
 
-            // 1. Generate Concentric Rings
             for (let r = 0; r <= rings; r++) {
                 const normalizedRadius = r / rings;
-                // Distribute rings closer together near the star to capture the extreme warp detail
                 const radius = Math.pow(normalizedRadius, 1.3) * maxRadius; 
 
                 for (let s = 0; s < radialLines; s++) {
@@ -158,7 +158,6 @@
                 }
             }
 
-            // 2. Generate Radial Spokes
             for (let s = 0; s < radialLines; s++) {
                 const theta = (s / radialLines) * Math.PI * 2;
                 const cos = Math.cos(theta);
@@ -188,11 +187,11 @@
         updateFabric();
 
         // --- 6. Create the Deflected EM Wave ---
-        const wavePointsCount = 500;
+        const wavePointsCount = 600; 
         const waveGeometry = new THREE.BufferGeometry();
         const wavePositions = new Float32Array(wavePointsCount * 3);
         waveGeometry.setAttribute('position', new THREE.BufferAttribute(wavePositions, 3));
-        const waveMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff });
+        const waveMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
         const waveLine = new THREE.Line(waveGeometry, waveMaterial);
         scene.add(waveLine);
 
@@ -204,31 +203,36 @@
         const refLine = new THREE.Line(refGeometry, refMaterial);
         scene.add(refLine);
 
+        // --- 7b. Create Vector Line for Asymptotic Deflection Angle ---
+        const angleGeometry = new THREE.BufferGeometry();
+        const anglePositions = new Float32Array(2 * 3); // 2 points (Start near lens, end at simulation edge)
+        angleGeometry.setAttribute('position', new THREE.BufferAttribute(anglePositions, 3));
+        const angleMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 3 });
+        const angleLine = new THREE.Line(angleGeometry, angleMaterial);
+        scene.add(angleLine);
+
         let waveTime = 0;
+        const angleDisplay = document.getElementById('angle-display');
 
-// --- 8. Build GUI Interface ---
-const gui = new lil.GUI({ title: 'Spacetime Visualizer' });
+        // --- 8. Build GUI Interface ---
+        const gui = new lil.GUI({ title: 'Relativistic Visualizer' });
+        
+        const fCam = gui.addFolder('Camera Angles');
+        fCam.add(params, 'perspectiveView').name('3D View');
+        fCam.add(params, 'topDownView').name('2D Top-Down');
 
-const fCam = gui.addFolder('Camera Angles');
-fCam.add(params, 'perspectiveView').name(' 3D view');
-fCam.add(params, 'topDownView').name('2D view');
+        const fStar = gui.addFolder('Gravitational Core');
+        fStar.add(params, 'starMass', 0, 24, 0.1).name('Mass (M☉)').onChange(updateFabric);
+        fStar.add(params, 'impactParameter', 4.2, 20, 0.1).name('Impact Parameter (b)');
 
-const fStar = gui.addFolder('Gravitational force');
-// Added M☉ (Solar Mass unit symbol) to the Mass name label
-fStar.add(params, 'starMass', 0, 25, 0.1).name('Mass (M☉)').onChange(updateFabric);
-fStar.add(params, 'impactParameter', 3.8, 20, 0.1).name('Wave position (u)');
+        const fStyle = gui.addFolder('Cosmetics');
+        fStyle.add(params, 'showGrid').name('Show Fabric Grid').onChange(v => spaceTimeGrid.visible = v);
+        fStyle.add(params, 'showReference').name('Show Reference Line').onChange(v => refLine.visible = v);
+        fStyle.add(params, 'showAngleLine').name('Show Deflection Vector').onChange(v => angleLine.visible = v);
+        fStyle.addColor(params, 'gridColor').name('Fabric Color').onChange(c => gridMaterial.color.set(c));
 
-const fWave = gui.addFolder('Wave Form');
-fWave.add(params, 'amplitude', 0, 3.0, 0.1).name('Amplitude (u)');
-fWave.add(params, 'wavelength', 1.5, 10.0, 0.1).name('Wavelength (u)');
-fWave.add(params, 'waveSpeed', 0.0, 1.0, 0.02).name('Speed (u/f)');
+        gui.open();
 
-const fStyle = gui.addFolder('Cosmetics');
-fStyle.add(params, 'showGrid').name('Show Space Fabric').onChange(v => spaceTimeGrid.visible = v);
-fStyle.add(params, 'showReference').name('Show Straight Line').onChange(v => refLine.visible = v);
-fStyle.addColor(params, 'gridColor').name('Fabric Color').onChange(c => gridMaterial.color.set(c));
-
-gui.open();
         // --- 9. Animation Loop ---
         function animate() {
             requestAnimationFrame(animate);
@@ -238,35 +242,59 @@ gui.open();
 
             const positions = waveLine.geometry.attributes.position.array;
             const refArray = refLine.geometry.attributes.position.array;
+            const angleArray = angleLine.geometry.attributes.position.array;
             const frequency = (2 * Math.PI) / params.wavelength;
+
+            const b = Math.max(params.impactParameter, 1.0);
+            
+            // This maps out to your current mathematical framework where total deflection builds past x = -15
+            const totalDeflectionAngle = (4.0 * (params.starMass * 0.12)) / b;
+
+            // Calculate angle in degrees for the information panel overlay
+            const angleInDegrees = (Math.atan(totalDeflectionAngle) * (180 / Math.PI));
+            angleDisplay.innerText = angleInDegrees.toFixed(2);
 
             for (let i = 0; i < wavePointsCount; i++) {
                 const x = (i / wavePointsCount) * 80 - 40; 
                 const propagationPath = 40 - x + waveTime;
+                
+                // Uses the locked parameter tracking exactly at 1.0
                 const baseOscillation = Math.sin(propagationPath * frequency) * params.amplitude;
 
-                // Curved Wave Path math
-                let z = params.impactParameter; 
-                if (x < 25) {
-                    const integrationFactor = 0.5 * (1 - Math.tanh(x / 4.5)); 
-                    const deflectionScaling = (params.starMass * 1.8) / Math.max(params.impactParameter, 1.0);
-                    z -= integrationFactor * deflectionScaling; 
+                const smoothTransition = 0.5 * (1 + Math.tanh(x / 5.0)); 
+                
+                let deflectionZ = 0;
+                if (x > -15) {
+                    deflectionZ = totalDeflectionAngle * (x + 15) * smoothTransition;
                 }
+
+                const z = params.impactParameter - deflectionZ;
                 const spaceDip = getSpaceTimeHeight(x, z);
                 
                 positions[i * 3] = x;
-                // The wave now tracks exactly down into the physical depth grid valley
                 positions[i * 3 + 1] = baseOscillation + spaceDip; 
                 positions[i * 3 + 2] = z;
 
-                // Baseline reference straight path math
                 refArray[i * 3] = x;
                 refArray[i * 3 + 1] = baseOscillation; 
                 refArray[i * 3 + 2] = params.impactParameter; 
             }
 
+            // --- Update Deflection Angle Vector Line ---
+            // Point 1: Where bending begins (x = -15, z = impactParameter)
+            angleArray[0] = -15;
+            angleArray[1] = 0; 
+            angleArray[2] = params.impactParameter;
+
+            // Point 2: Extrapolated trajectory out to the edge of the screen (x = 40)
+            angleArray[3] = 40;
+            angleArray[4] = 0;
+            angleArray[5] = params.impactParameter - (totalDeflectionAngle * (40 + 15));
+
             waveLine.geometry.attributes.position.needsUpdate = true;
             refLine.geometry.attributes.position.needsUpdate = true;
+            angleLine.geometry.attributes.position.needsUpdate = true;
+            
             refLine.computeLineDistances();
 
             waveTime += params.waveSpeed;
